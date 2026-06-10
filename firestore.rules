@@ -1,0 +1,126 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net Default-Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helper Functions ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Check if the user is a verified administrator
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'faresstar1985@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Enforce basic alphanumeric IDs to guard against injection/directory traversal
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\\\-]+$');
+    }
+
+    // Helper to extract incoming state data
+    function incoming() {
+      return request.resource.data;
+    }
+
+    // Helper to extract existing document state data
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Enterprise collections ---
+
+    // 1. PRODUCTS COLLECTION
+    // Readable by everyone, writable only by authenticated system administrators.
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidId(productId) && isValidProduct(incoming());
+      allow update: if isAdmin() && isValidProduct(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Product Schema Validation Blueprint
+    function isValidProduct(data) {
+      return data.keys().hasAll(['id', 'name', 'scientificName', 'price', 'category', 'images', 'description', 'benefits', 'size', 'difficulty', 'potType'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 200
+        && data.scientificName is string && data.scientificName.size() <= 200
+        && data.price is number && data.price >= 0
+        && data.category is string && data.category.size() <= 100
+        && data.images is list && data.images.size() <= 10
+        && data.description is string && data.description.size() <= 5000
+        && data.benefits is list && data.benefits.size() <= 20
+        && data.size is string && data.size.size() <= 100
+        && data.difficulty is string && data.difficulty.size() <= 50
+        && data.potType is string && data.potType.size() <= 200;
+    }
+
+    // 2. USERS COLLECTION
+    // Users can read/write their own info, admins can read/write all info.
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow create, update: if isSignedIn() && (request.auth.uid == userId || isAdmin()) && isValidUser(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // User Schema Validation Blueprint
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'displayName', 'photoURL', 'role'])
+        && data.uid == request.auth.uid
+        && data.email is string && data.email.size() <= 256
+        && data.displayName is string && data.displayName.size() <= 200
+        && data.photoURL is string && data.photoURL.size() <= 1000
+        && (data.role == 'user' || data.role == 'admin');
+    }
+
+    // 3. ORDERS COLLECTION
+    // Guests or signed-in users can create orders (for checkout)
+    // Only administrators or the ordering user can read details
+    match /orders/{orderId} {
+      allow create: if isValidId(orderId) && isValidOrder(incoming());
+      allow read: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid);
+      allow update: if isAdmin() && isValidOrder(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Order Schema Validation Blueprint
+    function isValidOrder(data) {
+      return data.keys().hasAll(['id', 'userId', 'customerName', 'customerPhone', 'customerAddress', 'items', 'totalAmount', 'status', 'createdAt'])
+        && data.id is string && data.id.size() <= 128
+        && (data.userId == null || data.userId is string)
+        && data.customerName is string && data.customerName.size() <= 200
+        && data.customerPhone is string && data.customerPhone.size() <= 32
+        && data.customerAddress is string && data.customerAddress.size() <= 500
+        && data.items is list
+        && data.totalAmount is number && data.totalAmount >= 0
+        && (data.status == 'pending' || data.status == 'processing' || data.status == 'completed' || data.status == 'cancelled');
+    }
+
+    // 4. RATINGS COLLECTION
+    // Readable by anyone, writable only by authenticated users under their own UID.
+    match /ratings/{ratingId} {
+      allow read: if true;
+      allow create, update: if isSignedIn() && isValidId(ratingId) && isValidRating(incoming()) && request.auth.uid == incoming().userId;
+      allow delete: if isSignedIn() && (request.auth.uid == existing().userId || isAdmin());
+    }
+
+    // Rating Schema Validation Blueprint
+    function isValidRating(data) {
+      return data.keys().hasAll(['id', 'productId', 'userId', 'rating', 'userDisplayName', 'comment', 'createdAt'])
+        && data.id is string && data.id.size() <= 200
+        && data.productId is string && data.productId.size() <= 128
+        && data.userId == request.auth.uid
+        && data.rating is number && data.rating >= 1 && data.rating <= 5
+        && data.userDisplayName is string && data.userDisplayName.size() <= 200
+        && data.comment is string && data.comment.size() <= 1000
+        && data.createdAt is string && data.createdAt.size() <= 100;
+    }
+  }
+}

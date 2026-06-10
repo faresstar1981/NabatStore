@@ -1,0 +1,92 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account information and roles",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The unique Firebase UID" },
+        "email": { "type": "string", "format": "email", "description": "The user's email address" },
+        "displayName": { "type": "string", "description": "The user's full name" },
+        "photoURL": { "type": "string", "description": "URL to profile picture" },
+        "role": { "type": "string", "enum": ["user", "admin"], "description": "Access level of the user" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Account registration timestamp" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Product": {
+      "title": "Plant Product",
+      "description": "A single botanical product entry in the store catalog",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Product ID or slug" },
+        "name": { "type": "string", "description": "Arabic display name" },
+        "scientificName": { "type": "string", "description": "Latin scientific name" },
+        "price": { "type": "number", "description": "Price of the plant in Saudi Riyal" },
+        "category": { "type": "string", "description": "Classification category: indoor, tall-trees, etc." },
+        "images": { "type": "array", "description": "List of high-resolution product image URLs" },
+        "description": { "type": "string", "description": "Detailed description of the plant" },
+        "benefits": { "type": "array", "description": "Key benefits and aesthetic capabilities" },
+        "careInstructions": {
+          "type": "object",
+          "description": "Botanist's guide for maintaining this plant type"
+        },
+        "size": { "type": "string", "description": "Expected height range" },
+        "difficulty": { "type": "string", "description": "Care level: easy, medium, expert" },
+        "potType": { "type": "string", "description": "Material and style of the planter included" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Time the product was uploaded to catalog" }
+      },
+      "required": ["id", "name", "price", "category", "images", "description", "size"]
+    },
+    "Order": {
+      "title": "Store Order",
+      "description": "An order composed of items purchased by a customer",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique order receipt number" },
+        "userId": { "type": "string", "description": "Auth ID of user if authenticated, or 'guest'" },
+        "customerName": { "type": "string", "description": "Buyer's name" },
+        "customerPhone": { "type": "string", "description": "Buyer's phone or WhatsApp contact number" },
+        "customerAddress": { "type": "string", "description": "delivery address in KSA" },
+        "items": { "type": "array", "description": "Consolidated list of purchase line items" },
+        "totalAmount": { "type": "number", "description": "Total checkout price in SAR" },
+        "status": { "type": "string", "enum": ["pending", "processing", "completed", "cancelled"], "description": "Status of full order lifecycle" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Order creation timestamp" }
+      },
+      "required": ["id", "customerName", "customerPhone", "customerAddress", "items", "totalAmount", "status"]
+    },
+    "Rating": {
+      "title": "Product Rating",
+      "description": "Star rating and textual reviews submitted by customers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique rating ID, structured as productId_userId" },
+        "productId": { "type": "string", "description": "ID of the rated product" },
+        "userId": { "type": "string", "description": "UID of the rating user" },
+        "rating": { "type": "number", "description": "Number of stars from 1 to 5" },
+        "comment": { "type": "string", "description": "Review comment left by the user, defaults to empty" },
+        "userDisplayName": { "type": "string", "description": "Full name of the user" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Rating creation timestamp" }
+      },
+      "required": ["id", "productId", "userId", "rating", "userDisplayName", "comment", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles indexed by UID"
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Fully editable catalog of live plants and trees"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Record of all customer checkouts and WhatsApp transactions"
+    },
+    "/ratings/{ratingId}": {
+      "schema": "Rating",
+      "description": "Star ratings and textual reviews submitted by customers"
+    }
+  }
+}

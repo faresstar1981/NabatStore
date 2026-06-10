@@ -1,0 +1,6 @@
+{
+  "name": "متجر نباتات - Nabtat",
+  "description": "متجر إلكتروني راقٍ لبيع النباتات والأشجار الطبيعية مع تفاصيل الرعاية والتوصيل",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
